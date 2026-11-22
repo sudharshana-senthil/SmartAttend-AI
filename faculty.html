@@ -1,0 +1,590 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SmartAttend | Faculty Dashboard</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- QRCode.js CDN -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Outfit', 'sans-serif'],
+                    },
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            background: radial-gradient(circle at top left, #0f172a, #020617, #090d16);
+            min-height: 100vh;
+        }
+        .glass-panel {
+            background: rgba(15, 23, 42, 0.75);
+            backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        #qrcode img {
+            margin: 0 auto;
+            border-radius: 8px;
+            padding: 8px;
+            background: #ffffff;
+        }
+    </style>
+</head>
+<body class="text-slate-100 font-sans flex flex-col min-h-screen">
+
+    <!-- Top Navigation Bar -->
+    <header class="border-b border-slate-800/80 glass-panel sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
+            <div class="flex items-center space-x-3">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-cyan-500 to-indigo-600 flex items-center justify-center text-white font-bold text-xl shadow-lg shadow-cyan-500/20">
+                    <i class="fa-solid fa-chalkboard-user"></i>
+                </div>
+                <div>
+                    <h1 class="text-xl font-bold bg-gradient-to-r from-white via-slate-200 to-cyan-300 bg-clip-text text-transparent">
+                        SmartAttend
+                    </h1>
+                    <p class="text-xs text-cyan-400 font-medium">Faculty Session Control</p>
+                </div>
+            </div>
+            <nav class="flex items-center space-x-4">
+                <a href="/faculty" class="px-4 py-2 text-sm font-medium text-white bg-slate-800/80 border border-slate-700 rounded-lg shadow-sm">
+                    <i class="fa-solid fa-gauge-high mr-1.5"></i> Dashboard
+                </a>
+                <a href="/register" class="px-4 py-2 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-800/60 rounded-lg transition-all">
+                    <i class="fa-solid fa-user-plus mr-1.5"></i> Register Student
+                </a>
+            </nav>
+        </div>
+    </header>
+
+    <!-- Main Content Container -->
+    <main class="flex-grow max-w-7xl w-full mx-auto px-6 py-10 space-y-8">
+
+        <!-- Top Header & Status -->
+        <div class="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+            <div>
+                <h2 class="text-3xl font-extrabold bg-gradient-to-r from-white via-slate-100 to-cyan-200 bg-clip-text text-transparent">
+                    Faculty Control Dashboard
+                </h2>
+                <p class="text-slate-400 text-sm mt-1">
+                    Initialize geofenced class sessions and monitor live zero-proxy attendance verification.
+                </p>
+            </div>
+            <div id="gpsStatusBadge" class="px-3.5 py-1.5 rounded-full bg-slate-800/80 border border-slate-700 text-xs text-slate-300 flex items-center space-x-2">
+                <i class="fa-solid fa-location-dot text-cyan-400"></i>
+                <span id="gpsText">Querying GPS Location...</span>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+
+            <!-- Left Panel: Create Session & QR Generator -->
+            <div class="lg:col-span-5 space-y-6">
+
+                <!-- Create Session Card -->
+                <div class="glass-panel p-6 rounded-2xl shadow-2xl">
+                    <h3 class="text-lg font-bold text-white mb-4 flex items-center">
+                        <i class="fa-solid fa-play-circle text-cyan-400 mr-2"></i> Start New Class Session
+                    </h3>
+
+                    <form id="sessionForm" onsubmit="event.preventDefault(); startSession();" class="space-y-4">
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1.5">
+                                Course Name / Code
+                            </label>
+                            <input type="text" id="course_name" required placeholder="e.g. CS402 - Computer Vision"
+                                class="w-full px-4 py-2.5 bg-slate-900/90 border border-slate-700/80 rounded-xl focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 text-slate-100 text-sm placeholder-slate-500 outline-none transition-all">
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1.5">
+                                Period Name / Number
+                            </label>
+                            <select id="period_name"
+                                class="w-full px-4 py-2.5 bg-slate-900/90 border border-slate-700/80 rounded-xl focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 text-slate-100 text-sm outline-none transition-all">
+                                <option value="Period 1" selected>Period 1 (09:00 AM - 10:00 AM)</option>
+                                <option value="Period 2">Period 2 (10:00 AM - 11:00 AM)</option>
+                                <option value="Period 3">Period 3 (11:15 AM - 12:15 PM)</option>
+                                <option value="Period 4">Period 4 (12:15 PM - 01:15 PM)</option>
+                                <option value="Period 5">Period 5 (02:00 PM - 03:00 PM)</option>
+                                <option value="Period 6">Period 6 (03:00 PM - 04:00 PM)</option>
+                                <option value="Period 7">Period 7 (04:00 PM - 05:00 PM)</option>
+                            </select>
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1.5">
+                                Faculty ID / Instructor Name
+                            </label>
+                            <input type="text" id="faculty_id" required placeholder="e.g. PROF-808 (Dr. Vance)"
+                                class="w-full px-4 py-2.5 bg-slate-900/90 border border-slate-700/80 rounded-xl focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 text-slate-100 text-sm placeholder-slate-500 outline-none transition-all">
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1.5">
+                                Geofence Radius Boundary
+                            </label>
+                            <select id="geofence_radius"
+                                class="w-full px-4 py-2.5 bg-slate-900/90 border border-slate-700/80 rounded-xl focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 text-slate-100 text-sm outline-none transition-all">
+                                <option value="30" selected>30 Meters (Strict Classroom Radius - Default)</option>
+                                <option value="50">50 Meters (Extended Classroom)</option>
+                                <option value="100">100 Meters</option>
+                                <option value="500">500 Meters (Campus Building)</option>
+                                <option value="0">Demo / Dev Mode (Unlimited Radius / Bypass Geofence)</option>
+                            </select>
+                        </div>
+
+                        <div class="pt-2">
+                            <button type="submit" id="btnStartSession"
+                                class="w-full py-3.5 px-4 bg-gradient-to-r from-cyan-600 to-indigo-600 hover:from-cyan-500 hover:to-indigo-500 text-white font-bold rounded-xl shadow-lg shadow-cyan-600/30 flex items-center justify-center space-x-2 transition-all cursor-pointer">
+                                <i class="fa-solid fa-bullseye mr-1"></i>
+                                <span>1-Click Start Session (30m Radius)</span>
+                            </button>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- Active QR Code Card (Hidden by default) -->
+                <div id="qrCard" class="hidden glass-panel p-6 rounded-2xl shadow-2xl text-center space-y-4">
+                    <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+                        <span class="px-2.5 py-1 text-xs font-semibold rounded-full bg-emerald-950 text-emerald-400 border border-emerald-800/60 flex items-center">
+                            <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse mr-1.5"></span> Session Active
+                        </span>
+                        <span id="activeCourseName" class="text-xs font-bold text-cyan-300"></span>
+                    </div>
+
+                    <p class="text-xs text-slate-400">Scan QR Code using student mobile device to verify attendance:</p>
+                    
+                    <div id="qrcode" class="my-3 inline-block"></div>
+
+                    <div class="bg-slate-900/90 p-3 rounded-xl border border-slate-800 text-left space-y-1">
+                        <div class="text-[11px] text-slate-400 font-mono overflow-hidden text-ellipsis whitespace-nowrap" id="studentLinkText"></div>
+                        <div class="flex items-center space-x-2 pt-1">
+                            <button onclick="copyStudentLink()" class="flex-1 py-1.5 px-3 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium rounded-lg transition-all flex items-center justify-center">
+                                <i class="fa-solid fa-copy mr-1.5"></i> Copy Link
+                            </button>
+                            <a id="btnOpenStudent" href="#" target="_blank" class="flex-1 py-1.5 px-3 bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-medium rounded-lg transition-all flex items-center justify-center">
+                                <i class="fa-solid fa-external-link mr-1.5"></i> Student Portal
+                            </a>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Right Panel: Real-Time Live Attendance Roster -->
+            <div class="lg:col-span-7 glass-panel p-6 rounded-2xl shadow-2xl flex flex-col">
+
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6 pb-4 border-b border-slate-800">
+                    <div>
+                        <h3 class="text-lg font-bold text-white flex items-center">
+                            <i class="fa-solid fa-users-viewfinder text-indigo-400 mr-2"></i> Live Verification Roster
+                        </h3>
+                        <div class="flex items-center space-x-2 mt-2">
+                            <button id="tabActiveBtn" onclick="switchRosterTab('active')" class="px-3 py-1 text-xs font-bold rounded-lg bg-indigo-600 text-white shadow">
+                                <i class="fa-solid fa-clock-rotate-left mr-1"></i> Active Class Session
+                            </button>
+                            <button id="tabMasterBtn" onclick="switchRosterTab('master')" class="px-3 py-1 text-xs font-bold rounded-lg bg-slate-800 text-slate-300 hover:text-white border border-slate-700 transition-all">
+                                <i class="fa-solid fa-users mr-1"></i> Master Directory (All Students)
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="flex flex-wrap items-center gap-2">
+                        <div id="counterBadge" class="px-3 py-1.5 rounded-xl bg-indigo-950/70 border border-indigo-800/60 text-xs font-semibold text-indigo-300">
+                            Total Verified: <span id="totalCount" class="text-white font-bold ml-1 text-sm">0</span>
+                        </div>
+                        <!-- Active Session Export -->
+                        <button id="btnExport" onclick="exportCSV()" disabled
+                            class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 disabled:cursor-not-allowed text-white text-xs font-bold rounded-xl shadow-md transition-all flex items-center">
+                            <i class="fa-solid fa-file-csv mr-1 text-xs"></i> CSV
+                        </button>
+
+                        <!-- Master Directory Export -->
+                        <button id="btnExportMaster" onclick="exportMasterCSV()"
+                            class="hidden px-3 py-1.5 bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold rounded-xl shadow-md transition-all flex items-center">
+                            <i class="fa-solid fa-file-excel mr-1 text-xs"></i> Master CSV
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Active Session Table View -->
+                <div id="activeTableView" class="flex-grow overflow-x-auto">
+                    <table class="w-full text-left text-xs text-slate-300">
+                        <thead class="text-[11px] font-semibold uppercase tracking-wider text-slate-400 bg-slate-900/80 border-b border-slate-800">
+                            <tr>
+                                <th class="px-4 py-3">Student ID</th>
+                                <th class="px-4 py-3">Student Name</th>
+                                <th class="px-4 py-3">Department</th>
+                                <th class="px-4 py-3">Staff / Faculty Name</th>
+                                <th class="px-4 py-3">Course Name</th>
+                                <th class="px-4 py-3">Period Name</th>
+                                <th class="px-4 py-3">Verified Time</th>
+                                <th class="px-4 py-3">Similarity</th>
+                                <th class="px-4 py-3">Distance</th>
+                                <th class="px-4 py-3">Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="attendanceTableBody" class="divide-y divide-slate-800/60">
+                            <tr>
+                                <td colspan="10" class="px-4 py-12 text-center text-slate-500 font-medium">
+                                    <i class="fa-solid fa-qrcode text-3xl mb-2 block text-slate-600"></i>
+                                    No active session started. Start a session to monitor live attendance.
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Master Directory Table View -->
+                <div id="masterTableView" class="hidden flex-grow overflow-x-auto">
+                    <table class="w-full text-left text-xs text-slate-300">
+                        <thead class="text-[11px] font-semibold uppercase tracking-wider text-slate-400 bg-slate-900/80 border-b border-slate-800">
+                            <tr>
+                                <th class="px-4 py-3">Student ID</th>
+                                <th class="px-4 py-3">Student Name</th>
+                                <th class="px-4 py-3">Department</th>
+                                <th class="px-4 py-3">Staff / Faculty Name</th>
+                                <th class="px-4 py-3">Course Name</th>
+                                <th class="px-4 py-3">Period Name</th>
+                                <th class="px-4 py-3">Total Attended</th>
+                                <th class="px-4 py-3">Last Verified</th>
+                                <th class="px-4 py-3">Overall Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="masterTableBody" class="divide-y divide-slate-800/60">
+                            <tr>
+                                <td colspan="9" class="px-4 py-12 text-center text-slate-500 font-medium">
+                                    <i class="fa-solid fa-spinner animate-spin text-cyan-400 mr-2"></i> Loading Master Student Directory...
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+            </div>
+
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="border-t border-slate-800/80 py-6 text-center text-xs text-slate-500 mt-auto">
+        SmartAttend Zero-Proxy Biometric Verification System &bull; Powered by FastAPI & MediaPipe
+    </footer>
+
+    <!-- JavaScript Logic -->
+    <script>
+        let currentLatitude = null;
+        let currentLongitude = null;
+        let activeSessionId = null;
+        let pollTimer = null;
+        let qrCodeObj = null;
+
+        // Obtain Geolocation on load
+        function requestLocation() {
+            if ("geolocation" in navigator) {
+                navigator.geolocation.getCurrentPosition(
+                    (pos) => {
+                        currentLatitude = pos.coords.latitude;
+                        currentLongitude = pos.coords.longitude;
+                        document.getElementById('gpsStatusBadge').className = "px-3.5 py-1.5 rounded-full bg-emerald-950/80 border border-emerald-700/60 text-xs text-emerald-300 flex items-center space-x-2";
+                        document.getElementById('gpsText').innerHTML = `GPS Ready (${currentLatitude.toFixed(4)}, ${currentLongitude.toFixed(4)})`;
+                    },
+                    (err) => {
+                        console.warn("Geolocation warning:", err);
+                        document.getElementById('gpsStatusBadge').className = "px-3.5 py-1.5 rounded-full bg-amber-950/80 border border-amber-700/60 text-xs text-amber-300 flex items-center space-x-2";
+                        document.getElementById('gpsText').innerHTML = "Location Permission Required (Using Default Coordinates)";
+                        // Fallback default coordinates if browser blocks location
+                        currentLatitude = 12.9716;
+                        currentLongitude = 77.5946;
+                    },
+                    { enableHighAccuracy: true, timeout: 10000 }
+                );
+            }
+        }
+
+        async function startSession() {
+            const courseName = document.getElementById('course_name').value.trim();
+            const periodName = document.getElementById('period_name').value;
+            const facultyId = document.getElementById('faculty_id').value.trim();
+
+            if (!courseName || !facultyId) {
+                alert("Please enter both Course Name and Faculty ID.");
+                return;
+            }
+
+            const btn = document.getElementById('btnStartSession');
+            btn.disabled = true;
+            btn.innerHTML = `<i class="fa-solid fa-spinner animate-spin mr-2"></i> Querying Faculty GPS Location...`;
+
+            // Acquire fresh current GPS coordinates at exact instant of session start
+            if ("geolocation" in navigator) {
+                try {
+                    const pos = await new Promise((resolve, reject) => {
+                        navigator.geolocation.getCurrentPosition(resolve, reject, {
+                            enableHighAccuracy: true,
+                            timeout: 10000,
+                            maximumAge: 0
+                        });
+                    });
+                    currentLatitude = pos.coords.latitude;
+                    currentLongitude = pos.coords.longitude;
+                    document.getElementById('gpsStatusBadge').className = "px-3.5 py-1.5 rounded-full bg-emerald-950/80 border border-emerald-700/60 text-xs text-emerald-300 flex items-center space-x-2";
+                    document.getElementById('gpsText').innerHTML = `Faculty GPS Locked (${currentLatitude.toFixed(4)}, ${currentLongitude.toFixed(4)})`;
+                } catch (gpsErr) {
+                    console.warn("Fresh GPS query warning:", gpsErr);
+                    if (currentLatitude === null || currentLongitude === null) {
+                        currentLatitude = 12.9716;
+                        currentLongitude = 77.5946;
+                    }
+                }
+            } else if (currentLatitude === null || currentLongitude === null) {
+                currentLatitude = 12.9716;
+                currentLongitude = 77.5946;
+            }
+
+            const radiusVal = parseFloat(document.getElementById('geofence_radius').value);
+
+            btn.innerHTML = `<i class="fa-solid fa-spinner animate-spin mr-2"></i> Initializing Session...`;
+
+            try {
+                const response = await fetch('/api/create-session', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        course_name: courseName,
+                        period_name: periodName,
+                        faculty_id: facultyId,
+                        latitude: currentLatitude,
+                        longitude: currentLongitude,
+                        geofence_radius: radiusVal
+                    })
+                });
+
+                const data = await response.json();
+
+                if (response.ok && data.status === 'success') {
+                    activeSessionId = data.session_id;
+                    renderSessionUI(data);
+                    startPollingAttendance();
+                } else {
+                    alert("Failed to create session: " + (data.detail || "Unknown error"));
+                }
+            } catch (err) {
+                console.error("Error creating session:", err);
+                alert("Network error creating class session.");
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = `<i class="fa-solid fa-bullseye mr-1"></i> 1-Click Start Session (30m Radius)`;
+            }
+        }
+
+        async function renderSessionUI(sessionData) {
+            document.getElementById('qrCard').classList.remove('hidden');
+            const pName = sessionData.period_name || 'Period 1';
+            document.getElementById('activeCourseName').innerText = `${sessionData.course_name} (${pName})`;
+            document.getElementById('btnExport').disabled = false;
+
+            let baseURL = window.location.origin;
+
+            // If accessed via 127.0.0.1 or localhost on host machine, use actual Wi-Fi LAN IP so mobile devices scanning QR code can connect
+            if (window.location.hostname === '127.0.0.1' || window.location.hostname === 'localhost') {
+                try {
+                    const netRes = await fetch('/api/network-ip');
+                    if (netRes.ok) {
+                        const netData = await netRes.json();
+                        if (netData.local_ip && netData.local_ip !== '127.0.0.1') {
+                            baseURL = `http://${netData.local_ip}:${netData.port}`;
+                        }
+                    }
+                } catch (e) {
+                    console.warn("Network IP fetch warning:", e);
+                }
+            }
+
+            const studentURL = `${baseURL}/student?session_id=${sessionData.session_id}`;
+            document.getElementById('studentLinkText').innerText = studentURL;
+            document.getElementById('btnOpenStudent').href = studentURL;
+
+            // Generate QR code
+            const qrcodeContainer = document.getElementById('qrcode');
+            qrcodeContainer.innerHTML = "";
+            qrCodeObj = new QRCode(qrcodeContainer, {
+                text: studentURL,
+                width: 180,
+                height: 180,
+                colorDark : "#0f172a",
+                colorLight : "#ffffff",
+                correctLevel : QRCode.CorrectLevel.H
+            });
+        }
+
+        function copyStudentLink() {
+            const link = document.getElementById('studentLinkText').innerText;
+            navigator.clipboard.writeText(link).then(() => {
+                alert("Student Attendance Portal URL copied to clipboard!");
+            });
+        }
+
+        function startPollingAttendance() {
+            if (pollTimer) clearInterval(pollTimer);
+            fetchAttendance();
+            pollTimer = setInterval(fetchAttendance, 3000);
+        }
+
+        async function fetchAttendance() {
+            if (!activeSessionId) return;
+
+            try {
+                const res = await fetch(`/api/session-attendance/${activeSessionId}`);
+                if (!res.ok) return;
+
+                const data = await res.json();
+                document.getElementById('totalCount').innerText = data.total_present;
+
+                const tbody = document.getElementById('attendanceTableBody');
+                if (data.attendance.length === 0) {
+                    tbody.innerHTML = `
+                        <tr>
+                            <td colspan="10" class="px-4 py-8 text-center text-slate-500 font-medium">
+                                <i class="fa-solid fa-spinner animate-spin text-cyan-400 mr-2"></i> Waiting for students to complete verification...
+                            </td>
+                        </tr>
+                    `;
+                    return;
+                }
+
+                tbody.innerHTML = data.attendance.map(item => {
+                    const fName = item.faculty_id || item.last_faculty || item.faculty || 'N/A';
+                    const cName = item.course_name || item.last_course || item.course || 'N/A';
+                    const pName = item.period_name || item.last_period || item.period || 'Period 1';
+                    return `
+                    <tr class="hover:bg-slate-800/40 transition-colors">
+                        <td class="px-4 py-3 font-mono text-cyan-300 font-semibold">${item.student_id}</td>
+                        <td class="px-4 py-3 font-bold text-white">${item.name}</td>
+                        <td class="px-4 py-3 text-slate-400">${item.department}</td>
+                        <td class="px-4 py-3 font-semibold text-amber-300">${fName}</td>
+                        <td class="px-4 py-3 font-semibold text-indigo-300">${cName}</td>
+                        <td class="px-4 py-3 text-cyan-400 font-medium">${pName}</td>
+                        <td class="px-4 py-3 text-slate-400 font-mono">${item.verified_at}</td>
+                        <td class="px-4 py-3 font-semibold text-emerald-400">${item.similarity_score}</td>
+                        <td class="px-4 py-3 text-slate-300">${item.distance_meters}</td>
+                        <td class="px-4 py-3">
+                            <span class="px-2 py-0.5 text-[10px] font-bold rounded-full bg-emerald-950 text-emerald-400 border border-emerald-800">
+                                ${item.status}
+                            </span>
+                        </td>
+                    </tr>
+                `;
+                }).join('');
+
+            } catch (err) {
+                console.error("Polling error:", err);
+            }
+        }
+
+        function exportCSV() {
+            if (!activeSessionId) return;
+            window.location.href = `/api/export-attendance/${activeSessionId}`;
+        }
+
+        let activeTab = 'active';
+
+        function switchRosterTab(tab) {
+            activeTab = tab;
+            const activeView = document.getElementById('activeTableView');
+            const masterView = document.getElementById('masterTableView');
+            const tabActiveBtn = document.getElementById('tabActiveBtn');
+            const tabMasterBtn = document.getElementById('tabMasterBtn');
+            const btnExport = document.getElementById('btnExport');
+            const btnExportMaster = document.getElementById('btnExportMaster');
+
+            if (tab === 'active') {
+                activeView.classList.remove('hidden');
+                masterView.classList.add('hidden');
+                btnExport.classList.remove('hidden');
+                btnExportMaster.classList.add('hidden');
+                tabActiveBtn.className = "px-3 py-1 text-xs font-bold rounded-lg bg-indigo-600 text-white shadow";
+                tabMasterBtn.className = "px-3 py-1 text-xs font-bold rounded-lg bg-slate-800 text-slate-300 hover:text-white border border-slate-700 transition-all";
+                fetchAttendance();
+            } else {
+                activeView.classList.add('hidden');
+                masterView.classList.remove('hidden');
+                btnExport.classList.add('hidden');
+                btnExportMaster.classList.remove('hidden');
+                tabMasterBtn.className = "px-3 py-1 text-xs font-bold rounded-lg bg-indigo-600 text-white shadow";
+                tabActiveBtn.className = "px-3 py-1 text-xs font-bold rounded-lg bg-slate-800 text-slate-300 hover:text-white border border-slate-700 transition-all";
+                fetchMasterDirectory();
+            }
+        }
+
+        async function fetchMasterDirectory() {
+            try {
+                const res = await fetch('/api/all-students-attendance');
+                if (!res.ok) return;
+
+                const data = await res.json();
+                document.getElementById('totalCount').innerText = `${data.total_present_overall} / ${data.total_registered}`;
+
+                const tbody = document.getElementById('masterTableBody');
+                if (data.students.length === 0) {
+                    tbody.innerHTML = `
+                        <tr>
+                            <td colspan="9" class="px-4 py-8 text-center text-slate-500 font-medium">
+                                No registered students found in database. Register students on /register.
+                            </td>
+                        </tr>
+                    `;
+                    return;
+                }
+
+                tbody.innerHTML = data.students.map(item => {
+                    const fName = item.faculty_id || item.last_faculty || item.faculty || 'N/A';
+                    const cName = item.course_name || item.last_course || item.course || 'N/A';
+                    const pName = item.period_name || item.last_period || item.period || 'Period 1';
+                    return `
+                    <tr class="hover:bg-slate-800/40 transition-colors">
+                        <td class="px-4 py-3 font-mono text-cyan-300 font-semibold">${item.student_id}</td>
+                        <td class="px-4 py-3 font-bold text-white">${item.name}</td>
+                        <td class="px-4 py-3 text-slate-400">${item.department}</td>
+                        <td class="px-4 py-3 font-semibold text-amber-300">${fName}</td>
+                        <td class="px-4 py-3 font-semibold text-indigo-300">${cName}</td>
+                        <td class="px-4 py-3 text-cyan-400 font-medium">${pName}</td>
+                        <td class="px-4 py-3 font-bold text-emerald-400">${item.total_attended} sessions</td>
+                        <td class="px-4 py-3 text-slate-400 font-mono">${item.last_verified}</td>
+                        <td class="px-4 py-3">
+                            <span class="px-2 py-0.5 text-[10px] font-bold rounded-full ${item.status === 'PRESENT' ? 'bg-emerald-950 text-emerald-400 border border-emerald-800' : 'bg-rose-950 text-rose-400 border border-rose-800'}">
+                                ${item.status}
+                            </span>
+                        </td>
+                    </tr>
+                `;
+                }).join('');
+
+            } catch (err) {
+                console.error("Master directory error:", err);
+            }
+        }
+
+        function exportMasterCSV() {
+            window.location.href = '/api/export-master-attendance';
+        }
+
+        window.addEventListener('DOMContentLoaded', requestLocation);
+    </script>
+</body>
+</html>

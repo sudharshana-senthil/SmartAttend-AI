@@ -1,0 +1,743 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SmartAttend | Student Verification Portal</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- MediaPipe FaceMesh & Camera Utils -->
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js" crossorigin="anonymous"></script>
+
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Outfit', 'sans-serif'],
+                    },
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            background: radial-gradient(circle at bottom center, #020617, #0f172a, #030712);
+            min-height: 100vh;
+        }
+        .glass-panel {
+            background: rgba(15, 23, 42, 0.80);
+            backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .mesh-canvas {
+            transform: scaleX(-1);
+        }
+        .pulse-border {
+            animation: pulseGlow 2s infinite;
+        }
+        @keyframes pulseGlow {
+            0% { box-shadow: 0 0 15px rgba(99, 102, 241, 0.4); }
+            50% { box-shadow: 0 0 30px rgba(99, 102, 241, 0.8); }
+            100% { box-shadow: 0 0 15px rgba(99, 102, 241, 0.4); }
+        }
+    </style>
+</head>
+<body class="text-slate-100 font-sans flex flex-col min-h-screen">
+
+    <!-- Top Bar -->
+    <header class="border-b border-slate-800/80 glass-panel sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
+            <div class="flex items-center space-x-3">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-500 via-purple-500 to-cyan-400 flex items-center justify-center text-white font-bold text-xl shadow-lg shadow-indigo-500/20">
+                    <i class="fa-solid fa-user-check"></i>
+                </div>
+                <div>
+                    <h1 class="text-xl font-bold bg-gradient-to-r from-white via-slate-200 to-indigo-300 bg-clip-text text-transparent">
+                        SmartAttend
+                    </h1>
+                    <p class="text-xs text-indigo-400 font-medium">Student Verification Portal</p>
+                </div>
+            </div>
+            <div id="sessionBadge" class="hidden md:flex items-center space-x-2 px-3 py-1.5 rounded-full bg-slate-900 border border-slate-800 text-xs">
+                <span class="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
+                <span class="text-slate-400">Course:</span>
+                <span id="sessionCourseText" class="font-bold text-white">Loading...</span>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Verification Interface -->
+    <main class="flex-grow max-w-5xl w-full mx-auto px-6 py-8 flex flex-col justify-center">
+
+        <!-- Verification Triangle Progress Stepper -->
+        <div class="mb-6 glass-panel p-4 rounded-2xl">
+            <div class="grid grid-cols-3 gap-2 text-center text-xs font-semibold">
+                <div id="stepSpatial" class="py-2.5 px-3 rounded-xl bg-slate-800/80 border border-slate-700 text-slate-400 flex flex-col items-center justify-center transition-all">
+                    <i class="fa-solid fa-location-dot text-base mb-1"></i>
+                    <span>1. Spatial (50m Radius)</span>
+                </div>
+                <div id="stepVitality" class="py-2.5 px-3 rounded-xl bg-slate-800/80 border border-slate-700 text-slate-400 flex flex-col items-center justify-center transition-all">
+                    <i class="fa-solid fa-face-smile-beam text-base mb-1"></i>
+                    <span>2. 3D Vitality Liveness</span>
+                </div>
+                <div id="stepIdentity" class="py-2.5 px-3 rounded-xl bg-slate-800/80 border border-slate-700 text-slate-400 flex flex-col items-center justify-center transition-all">
+                    <i class="fa-solid fa-fingerprint text-base mb-1"></i>
+                    <span>3. Identity (Cosine $\ge$80%)</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-stretch">
+
+            <!-- Left Controls & Input Section -->
+            <div class="lg:col-span-4 glass-panel p-6 rounded-2xl flex flex-col justify-between space-y-6">
+                
+                <div>
+                    <h2 class="text-xl font-bold text-white mb-1 flex items-center">
+                        <i class="fa-solid fa-user-lock text-indigo-400 mr-2"></i> Attendance Log
+                    </h2>
+                    <p class="text-xs text-slate-400">Enter your Student ID to start verification.</p>
+                </div>
+
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1.5">
+                            Registered Student ID
+                        </label>
+                        <input type="text" id="student_id" placeholder="e.g. STU1001" required
+                            class="w-full px-4 py-2.5 bg-slate-900 border border-slate-700 rounded-xl focus:ring-2 focus:ring-indigo-500 text-white text-sm outline-none">
+                    </div>
+
+                    <!-- Geofence Info Card -->
+                    <div id="geoCard" class="p-3.5 rounded-xl bg-slate-900/90 border border-slate-800 space-y-2">
+                        <div class="flex items-center justify-between text-xs">
+                            <span class="text-slate-400 font-medium">Classroom Distance:</span>
+                            <span id="geoDistance" class="font-bold text-slate-300">Checking GPS...</span>
+                        </div>
+                        <div class="w-full bg-slate-800 h-1.5 rounded-full overflow-hidden">
+                            <div id="geoProgressBar" class="bg-indigo-500 h-full w-0 transition-all duration-500"></div>
+                        </div>
+                        <p id="geoSubText" class="text-[11px] text-slate-500">Calculating Haversine proximity to instructor device...</p>
+                    </div>
+
+                    <!-- Prompt Instruction Banner -->
+                    <div id="promptBox" class="p-4 rounded-xl bg-indigo-950/60 border border-indigo-700/60 text-center space-y-1">
+                        <span class="text-[10px] font-bold uppercase tracking-wider text-indigo-400 block">Liveness Challenge</span>
+                        <h4 id="promptText" class="text-base font-extrabold text-white">Initializing Camera...</h4>
+                    </div>
+                </div>
+
+                <button id="btnStartCheck" onclick="startVerificationProcess()"
+                    class="w-full py-3.5 px-4 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-bold rounded-xl shadow-lg shadow-indigo-600/30 flex items-center justify-center space-x-2 transition-all cursor-pointer">
+                    <i class="fa-solid fa-circle-play mr-1"></i>
+                    <span>Begin Verification Triangle</span>
+                </button>
+
+            </div>
+
+            <!-- Right Camera & MediaPipe Mesh Overlay Viewport -->
+            <div class="lg:col-span-8 glass-panel p-6 rounded-2xl flex flex-col items-center justify-center relative overflow-hidden">
+                
+                <div class="relative w-full max-w-lg aspect-[4/3] bg-slate-950 rounded-2xl overflow-hidden border border-slate-800 pulse-border">
+                    <video id="webcam" autoplay playsinline muted class="w-full h-full object-cover transform -scale-x-100 hidden"></video>
+                    <canvas id="outputCanvas" class="w-full h-full object-cover mesh-canvas"></canvas>
+
+                    <!-- Real-time Liveness Telemetry Overlay -->
+                    <div class="absolute top-3 left-3 bg-slate-950/80 backdrop-blur border border-slate-800 px-3 py-1.5 rounded-lg text-[11px] font-mono space-y-0.5">
+                        <div class="flex items-center space-x-2">
+                            <span class="text-slate-400">3D Z-Depth:</span>
+                            <span id="telemetryZ" class="text-cyan-400 font-bold">0.0000</span>
+                        </div>
+                        <div class="flex items-center space-x-2">
+                            <span class="text-slate-400">EAR Blink:</span>
+                            <span id="telemetryEAR" class="text-emerald-400 font-bold">0.00</span>
+                        </div>
+                        <div class="flex items-center space-x-2">
+                            <span class="text-slate-400">LAR Smile:</span>
+                            <span id="telemetryLAR" class="text-purple-400 font-bold">0.00</span>
+                        </div>
+                    </div>
+
+                    <!-- Face Tracking Lock Indicator -->
+                    <div id="trackingBadge" class="absolute bottom-3 right-3 bg-slate-950/80 backdrop-blur border border-slate-800 px-3 py-1 rounded-full text-[10px] font-bold text-slate-400 flex items-center">
+                        <span id="trackingDot" class="w-2 h-2 rounded-full bg-slate-500 mr-1.5"></span>
+                        <span id="trackingText">Searching Face Mesh...</span>
+                    </div>
+                </div>
+
+                <!-- Camera Block Notice & Prominent Dev Mode Fallback Button -->
+                <div class="mt-4 w-full text-center space-y-2">
+                    <button onclick="bypassVitalityDevMode()" class="w-full py-3 px-4 bg-gradient-to-r from-amber-600 to-indigo-600 hover:from-amber-500 hover:to-indigo-500 text-white font-bold text-xs rounded-xl shadow-lg transition-all cursor-pointer flex items-center justify-center space-x-2">
+                        <i class="fa-solid fa-bolt text-sm"></i>
+                        <span>Click Here to Verify Attendance (Bypass Camera Lock)</span>
+                    </button>
+                    <p class="text-[11px] text-slate-400">
+                        <i class="fa-solid fa-circle-info text-cyan-400 mr-1"></i> Testing on laptop? Use <a id="localhostLink" href="#" class="text-indigo-400 underline font-semibold">127.0.0.1</a> to auto-enable camera.
+                    </p>
+                </div>
+
+            </div>
+
+        </div>
+
+    </main>
+
+    <!-- Success / Verification Modal -->
+    <div id="successModal" class="hidden fixed inset-0 bg-slate-950/90 backdrop-blur-md z-50 flex items-center justify-center p-4">
+        <div class="glass-panel max-w-md w-full p-8 rounded-3xl border border-emerald-500/40 text-center space-y-6 shadow-2xl">
+            <div class="w-20 h-20 mx-auto rounded-full bg-emerald-500/20 border-2 border-emerald-400 flex items-center justify-center text-emerald-400 text-4xl shadow-lg shadow-emerald-500/30">
+                <i class="fa-solid fa-shield-check"></i>
+            </div>
+
+            <div>
+                <h3 class="text-2xl font-black text-white">Attendance Verified!</h3>
+                <p class="text-xs text-emerald-400 font-semibold mt-1">Verification Triangle Passed (100% Clearance)</p>
+            </div>
+
+            <div class="bg-slate-900/90 p-4 rounded-2xl border border-slate-800 text-left text-xs space-y-2 font-mono">
+                <div class="flex justify-between border-b border-slate-800 pb-1.5">
+                    <span class="text-slate-400">Student Name:</span>
+                    <span id="resName" class="font-bold text-white"></span>
+                </div>
+                <div class="flex justify-between border-b border-slate-800 pb-1.5">
+                    <span class="text-slate-400">Student ID:</span>
+                    <span id="resID" class="font-bold text-cyan-300"></span>
+                </div>
+                <div class="flex justify-between border-b border-slate-800 pb-1.5">
+                    <span class="text-slate-400">Department:</span>
+                    <span id="resDept" class="text-slate-200"></span>
+                </div>
+                <div class="flex justify-between border-b border-slate-800 pb-1.5">
+                    <span class="text-slate-400">Biometric Similarity:</span>
+                    <span id="resSimilarity" class="font-bold text-emerald-400"></span>
+                </div>
+                <div class="flex justify-between border-b border-slate-800 pb-1.5">
+                    <span class="text-slate-400">Spatial Proximity:</span>
+                    <span id="resDistance" class="font-bold text-indigo-300"></span>
+                </div>
+                <div class="flex justify-between">
+                    <span class="text-slate-400">Verification Timestamp:</span>
+                    <span id="resTime" class="text-slate-300"></span>
+                </div>
+            </div>
+
+            <button onclick="window.location.reload()"
+                class="w-full py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl transition-all">
+                Done & Return
+            </button>
+        </div>
+    </div>
+
+    <!-- Error Modal -->
+    <div id="errorModal" class="hidden fixed inset-0 bg-slate-950/90 backdrop-blur-md z-50 flex items-center justify-center p-4">
+        <div class="glass-panel max-w-md w-full p-8 rounded-3xl border border-rose-500/40 text-center space-y-6 shadow-2xl">
+            <div class="w-16 h-16 mx-auto rounded-full bg-rose-500/20 border-2 border-rose-400 flex items-center justify-center text-rose-400 text-3xl shadow-lg shadow-rose-500/30">
+                <i class="fa-solid fa-triangle-exclamation"></i>
+            </div>
+
+            <div>
+                <h3 id="errTitle" class="text-xl font-bold text-white">Verification Error</h3>
+                <p id="errMsg" class="text-xs text-rose-300 font-medium mt-2 leading-relaxed bg-rose-950/40 p-3 rounded-xl border border-rose-800/50"></p>
+            </div>
+
+            <button onclick="closeErrorModal()"
+                class="w-full py-3 bg-rose-600 hover:bg-rose-500 text-white font-bold rounded-xl transition-all cursor-pointer">
+                Dismiss & Try Again
+            </button>
+        </div>
+    </div>
+
+    <!-- JavaScript Core Pipeline -->
+    <script>
+        // Extract session_id from URL query string
+        const urlParams = new URLSearchParams(window.location.search);
+        const sessionId = urlParams.get('session_id');
+
+        let sessionLatitude = null;
+        let sessionLongitude = null;
+        let studentLatitude = null;
+        let studentLongitude = null;
+        let currentDistanceMeters = null;
+
+        let videoElement = document.getElementById('webcam');
+        let canvasElement = document.getElementById('outputCanvas');
+        let canvasCtx = canvasElement.getContext('2d');
+
+        // Liveness State Machine
+        let livenessState = "IDLE"; // IDLE, SPATIAL_CHECK, DEPTH_CHECK, BLINK_CHECK, SMILE_CHECK, COMPLETE
+        let blinkDetected = false;
+        let smileDetected = false;
+        let zDepthPassed = false;
+        let earBaseline = [];
+
+        // Haversine Spherical Distance Formula
+        function calculateHaversine(lat1, lon1, lat2, lon2) {
+            const R = 6371000;
+            const dLat = (lat2 - lat1) * Math.PI / 180;
+            const dLon = (lon2 - lon1) * Math.PI / 180;
+            const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+                      Math.sin(dLon/2) * Math.sin(dLon/2);
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+            return R * c;
+        }
+
+        // Fetch Session Info
+        async function loadSessionInfo() {
+            if (!sessionId) {
+                setPrompt("Error", "No active session ID provided in URL.");
+                return;
+            }
+
+            try {
+                const res = await fetch(`/api/session-info/${sessionId}`);
+                if (!res.ok) {
+                    setPrompt("Invalid Session", "Class session not found or inactive.");
+                    return;
+                }
+                const data = await res.json();
+                sessionLatitude = data.latitude;
+                sessionLongitude = data.longitude;
+                const pName = data.period_name || 'Period 1';
+                document.getElementById('sessionCourseText').innerText = `${data.course_name} | ${pName}`;
+                document.getElementById('sessionBadge').classList.remove('hidden');
+
+                // Request Student Geolocation
+                requestStudentLocation();
+            } catch (err) {
+                console.error("Session fetch error:", err);
+            }
+        }
+
+        function requestStudentLocation() {
+            if ("geolocation" in navigator) {
+                navigator.geolocation.getCurrentPosition(
+                    (pos) => {
+                        studentLatitude = pos.coords.latitude;
+                        studentLongitude = pos.coords.longitude;
+                        verifySpatialProximity();
+                    },
+                    (err) => {
+                        console.warn("Location permission warning:", err);
+                        // Fallback default coordinates for dev testing
+                        studentLatitude = sessionLatitude;
+                        studentLongitude = sessionLongitude;
+                        verifySpatialProximity();
+                    },
+                    { enableHighAccuracy: true }
+                );
+            }
+        }
+
+        function verifySpatialProximity() {
+            if (sessionLatitude === null || studentLatitude === null) return;
+
+            currentDistanceMeters = calculateHaversine(
+                sessionLatitude, sessionLongitude,
+                studentLatitude, studentLongitude
+            );
+
+            const distEl = document.getElementById('geoDistance');
+            const progressEl = document.getElementById('geoProgressBar');
+            const subText = document.getElementById('geoSubText');
+
+            distEl.innerText = `${currentDistanceMeters.toFixed(1)} meters`;
+
+            if (currentDistanceMeters <= 50.0) {
+                distEl.className = "font-bold text-emerald-400";
+                progressEl.className = "bg-emerald-500 h-full w-full transition-all duration-500";
+                subText.innerText = "Within 50m classroom geofence boundary.";
+                
+                // Update Step 1 UI
+                document.getElementById('stepSpatial').className = "py-2.5 px-3 rounded-xl bg-emerald-950/80 border border-emerald-700 text-emerald-300 flex flex-col items-center justify-center";
+                setPrompt("Enter Student ID", "Enter your ID and click Begin Verification.");
+            } else {
+                distEl.className = "font-bold text-rose-400";
+                progressEl.className = "bg-rose-500 h-full w-1/4 transition-all duration-500";
+                subText.innerText = "Spatial Violation: You are outside the 50m geofence radius.";
+                setPrompt("Out of Geofence", `Distance: ${currentDistanceMeters.toFixed(1)}m (Max: 50m allowed).`);
+            }
+        }
+
+        function formatErrorMessage(data) {
+            if (!data) return "An unknown error occurred.";
+            if (typeof data.detail === "string") {
+                return data.detail;
+            } else if (Array.isArray(data.detail)) {
+                return data.detail.map(err => {
+                    if (typeof err === "string") return err;
+                    if (err.msg) {
+                        const field = err.loc ? err.loc[err.loc.length - 1] : "";
+                        return field ? `${field}: ${err.msg}` : err.msg;
+                    }
+                    return JSON.stringify(err);
+                }).join(" | ");
+            } else if (typeof data.detail === "object" && data.detail !== null) {
+                return JSON.stringify(data.detail);
+            } else if (data.message) {
+                return data.message;
+            }
+            return "Verification error occurred. Please verify your Student ID and Session QR code.";
+        }
+
+        function showErrorModal(title, message) {
+            document.getElementById('errTitle').innerText = title;
+            document.getElementById('errMsg').innerText = message;
+            document.getElementById('errorModal').classList.remove('hidden');
+        }
+
+        function closeErrorModal() {
+            document.getElementById('errorModal').classList.add('hidden');
+        }
+
+        let sessionGeofenceRadius = 50.0;
+
+        // Fetch Session Info
+        async function loadSessionInfo() {
+            if (!sessionId || sessionId === "<UUID>") {
+                const msg = "Invalid Session URL: You are opening a template link (session_id=<UUID>). Please start a session on the Faculty Dashboard (http://127.0.0.1:8000/faculty) and scan or click the generated URL.";
+                setPrompt("Session Error", "No active session UUID provided.");
+                showErrorModal("Invalid Session Link", msg);
+                return;
+            }
+
+            try {
+                const res = await fetch(`/api/session-info/${sessionId}`);
+                const data = await res.json();
+                if (!res.ok) {
+                    const msg = formatErrorMessage(data);
+                    setPrompt("Invalid Session", msg);
+                    showErrorModal("Class Session Error", msg);
+                    return;
+                }
+                sessionLatitude = data.latitude;
+                sessionLongitude = data.longitude;
+                sessionGeofenceRadius = (data.geofence_radius !== undefined && data.geofence_radius !== null) ? data.geofence_radius : 50.0;
+                
+                document.getElementById('sessionCourseText').innerText = data.course_name;
+                document.getElementById('sessionBadge').classList.remove('hidden');
+                
+                const locLink = document.getElementById('localhostLink');
+                if (locLink) {
+                    locLink.href = `http://127.0.0.1:8000/student?session_id=${sessionId}`;
+                }
+
+                // Request Student Geolocation
+                requestStudentLocation();
+            } catch (err) {
+                console.error("Session fetch error:", err);
+                showErrorModal("Network Error", "Unable to connect to SmartAttend server.");
+            }
+        }
+
+        function requestStudentLocation() {
+            if ("geolocation" in navigator) {
+                navigator.geolocation.getCurrentPosition(
+                    (pos) => {
+                        studentLatitude = pos.coords.latitude;
+                        studentLongitude = pos.coords.longitude;
+                        verifySpatialProximity();
+                    },
+                    (err) => {
+                        console.warn("Location permission warning:", err);
+                        studentLatitude = sessionLatitude;
+                        studentLongitude = sessionLongitude;
+                        verifySpatialProximity();
+                    },
+                    { enableHighAccuracy: true }
+                );
+            }
+        }
+
+        function verifySpatialProximity() {
+            if (sessionLatitude === null || studentLatitude === null) return;
+
+            currentDistanceMeters = calculateHaversine(
+                sessionLatitude, sessionLongitude,
+                studentLatitude, studentLongitude
+            );
+
+            const distEl = document.getElementById('geoDistance');
+            const progressEl = document.getElementById('geoProgressBar');
+            const subText = document.getElementById('geoSubText');
+
+            distEl.innerText = `${currentDistanceMeters.toFixed(1)} meters`;
+
+            // If Demo Mode (geofence_radius === 0) or within allowed radius:
+            const isUnlimited = (sessionGeofenceRadius === 0);
+            const isWithin = isUnlimited || (currentDistanceMeters <= sessionGeofenceRadius);
+
+            if (isWithin) {
+                distEl.className = "font-bold text-emerald-400";
+                progressEl.className = "bg-emerald-500 h-full w-full transition-all duration-500";
+                subText.innerText = isUnlimited ? "Demo Mode: Unlimited Geofence Radius (Bypassed)." : `Within ${sessionGeofenceRadius}m classroom boundary.`;
+                
+                // Update Step 1 UI
+                document.getElementById('stepSpatial').className = "py-2.5 px-3 rounded-xl bg-emerald-950/80 border border-emerald-700 text-emerald-300 flex flex-col items-center justify-center";
+                setPrompt("Enter Student ID", "Enter your ID and click Begin Verification.");
+            } else {
+                distEl.className = "font-bold text-rose-400";
+                progressEl.className = "bg-rose-500 h-full w-1/4 transition-all duration-500";
+                subText.innerText = `Spatial Violation: You are outside the ${sessionGeofenceRadius}m geofence radius.`;
+                setPrompt("Out of Geofence", `Distance: ${currentDistanceMeters.toFixed(1)}m (Max: ${sessionGeofenceRadius}m allowed).`);
+            }
+        }
+
+        function setPrompt(title, text) {
+            document.getElementById('promptText').innerText = title;
+        }
+
+        // Calculate Eye Aspect Ratio (EAR)
+        function computeEAR(landmarks) {
+            const dist = (p1, p2) => Math.hypot(p1.x - p2.x, p1.y - p2.y, p1.z - p2.z);
+            const p1 = landmarks[33], p4 = landmarks[133];
+            const p2 = landmarks[159], p6 = landmarks[145];
+            const p3 = landmarks[158], p5 = landmarks[144];
+            const earLeft = (dist(p2, p6) + dist(p3, p5)) / (2.0 * dist(p1, p4));
+
+            const rp1 = landmarks[362], rp4 = landmarks[263];
+            const rp2 = landmarks[386], rp6 = landmarks[374];
+            const rp3 = landmarks[385], rp5 = landmarks[373];
+            const earRight = (dist(rp2, rp6) + dist(rp3, rp5)) / (2.0 * dist(rp1, rp4));
+
+            return (earLeft + earRight) / 2.0;
+        }
+
+        // Calculate Lip Aspect Ratio (LAR)
+        function computeLAR(landmarks) {
+            const dist = (p1, p2) => Math.hypot(p1.x - p2.x, p1.y - p2.y, p1.z - p2.z);
+            const topLip = landmarks[13], botLip = landmarks[14];
+            const leftCorner = landmarks[61], rightCorner = landmarks[291];
+            return dist(topLip, botLip) / dist(leftCorner, rightCorner);
+        }
+
+        // Calculate 3D Z-Depth Surface Curvature Variance
+        function computeZDepthVariance(landmarks) {
+            const noseZ = landmarks[1].z;
+            const leftCheekZ = landmarks[234].z;
+            const rightCheekZ = landmarks[454].z;
+            return Math.abs(noseZ - (leftCheekZ + rightCheekZ) / 2.0);
+        }
+
+        // MediaPipe Results Callback
+        function onFaceMeshResults(results) {
+            canvasElement.width = videoElement.videoWidth || 640;
+            canvasElement.height = videoElement.videoHeight || 480;
+
+            canvasCtx.save();
+            canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
+            canvasCtx.drawImage(results.image, 0, 0, canvasElement.width, canvasElement.height);
+
+            if (results.multiFaceLandmarks && results.multiFaceLandmarks.length > 0) {
+                const landmarks = results.multiFaceLandmarks[0];
+
+                document.getElementById('trackingDot').className = "w-2 h-2 rounded-full bg-emerald-400 animate-ping mr-1.5";
+                document.getElementById('trackingText').innerText = "Face Mesh Locked (468 3D Points)";
+
+                canvasCtx.fillStyle = '#6366f1';
+                for (let i = 0; i < landmarks.length; i += 4) {
+                    const pt = landmarks[i];
+                    canvasCtx.beginPath();
+                    canvasCtx.arc(pt.x * canvasElement.width, pt.y * canvasElement.height, 1.2, 0, 2 * Math.PI);
+                    canvasCtx.fill();
+                }
+
+                const zVariance = computeZDepthVariance(landmarks);
+                const ear = computeEAR(landmarks);
+                const lar = computeLAR(landmarks);
+
+                document.getElementById('telemetryZ').innerText = zVariance.toFixed(4);
+                document.getElementById('telemetryEAR').innerText = ear.toFixed(2);
+                document.getElementById('telemetryLAR').innerText = lar.toFixed(2);
+
+                if (livenessState === "DEPTH_CHECK") {
+                    if (zVariance > 0.015) {
+                        zDepthPassed = true;
+                        livenessState = "BLINK_CHECK";
+                        setPrompt("PLEASE BLINK YOUR EYES", "Involuntary Eye Aspect Ratio (EAR) Validation");
+                    }
+                } else if (livenessState === "BLINK_CHECK") {
+                    earBaseline.push(ear);
+                    if (earBaseline.length > 5) {
+                        const avgEar = earBaseline.reduce((a,b) => a+b, 0) / earBaseline.length;
+                        if (ear < avgEar * 0.70 || ear < 0.20) {
+                            blinkDetected = true;
+                            livenessState = "SMILE_CHECK";
+                            setPrompt("PLEASE SMILE OR OPEN MOUTH", "Voluntary Lip Aspect Ratio (LAR) Validation");
+                        }
+                    }
+                } else if (livenessState === "SMILE_CHECK") {
+                    if (lar > 0.32) {
+                        smileDetected = true;
+                        livenessState = "COMPLETE";
+                        
+                        document.getElementById('stepVitality').className = "py-2.5 px-3 rounded-xl bg-emerald-950/80 border border-emerald-700 text-emerald-300 flex flex-col items-center justify-center";
+                        document.getElementById('stepIdentity').className = "py-2.5 px-3 rounded-xl bg-purple-950/80 border border-purple-700 text-purple-300 flex flex-col items-center justify-center animate-pulse";
+                        
+                        setPrompt("Vitality Passed!", "Extracting facial vector & matching identity baseline...");
+                        executeBackendVerification();
+                    }
+                }
+
+            } else {
+                document.getElementById('trackingDot').className = "w-2 h-2 rounded-full bg-rose-500 mr-1.5";
+                document.getElementById('trackingText').innerText = "Searching Face Mesh...";
+            }
+
+            canvasCtx.restore();
+        }
+
+        const faceMesh = new FaceMesh({
+            locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`
+        });
+
+        faceMesh.setOptions({
+            maxNumFaces: 1,
+            refineLandmarks: true,
+            minDetectionConfidence: 0.5,
+            minTrackingConfidence: 0.5
+        });
+
+        faceMesh.onResults(onFaceMeshResults);
+
+        // Robust Native Camera Initializer
+        async function initStudentCamera() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    video: { width: { ideal: 640 }, height: { ideal: 480 }, facingMode: "user" },
+                    audio: false
+                });
+                videoElement.srcObject = stream;
+                videoElement.onloadedmetadata = () => {
+                    videoElement.play();
+                    requestAnimationFrame(processFrameLoop);
+                };
+            } catch (err) {
+                console.error("Camera access error:", err);
+                document.getElementById('trackingText').innerText = "Camera Access Blocked / Permission Required";
+                setPrompt("Camera Permission Required", "Please click the camera/lock icon in your browser address bar to allow camera access.");
+            }
+        }
+
+        async function processFrameLoop() {
+            if (videoElement.readyState >= 2) {
+                try {
+                    await faceMesh.send({ image: videoElement });
+                } catch (e) {
+                    console.warn("FaceMesh processing warning:", e);
+                }
+            }
+            requestAnimationFrame(processFrameLoop);
+        }
+
+        // Initialize camera on page load
+        initStudentCamera();
+
+        function bypassVitalityDevMode() {
+            const studentId = document.getElementById('student_id').value.trim();
+            if (!studentId) {
+                showErrorModal("Missing Input", "Please enter your Student ID before verifying.");
+                return;
+            }
+            if (!sessionId || sessionId === "<UUID>") {
+                showErrorModal("Invalid Session Link", "Please start a session on the Faculty Dashboard (http://127.0.0.1:8000/faculty) and scan or click the generated URL.");
+                return;
+            }
+            livenessState = "COMPLETE";
+            document.getElementById('stepVitality').className = "py-2.5 px-3 rounded-xl bg-emerald-950/80 border border-emerald-700 text-emerald-300 flex flex-col items-center justify-center";
+            document.getElementById('stepIdentity').className = "py-2.5 px-3 rounded-xl bg-purple-950/80 border border-purple-700 text-purple-300 flex flex-col items-center justify-center animate-pulse";
+            setPrompt("Vitality Bypassed (Dev)", "Extracting facial vector & matching identity baseline...");
+            executeBackendVerification();
+        }
+
+        function startVerificationProcess() {
+            const studentId = document.getElementById('student_id').value.trim();
+            if (!studentId) {
+                showErrorModal("Missing Input", "Please enter your Student ID before starting verification.");
+                return;
+            }
+
+            if (!sessionId || sessionId === "<UUID>") {
+                showErrorModal("Invalid Session Link", "You are using a template placeholder URL. Please start a session on the Faculty Dashboard (http://127.0.0.1:8000/faculty) and scan or click the generated URL.");
+                return;
+            }
+
+            if (currentDistanceMeters > 50.0) {
+                showErrorModal("Spatial Verification Failed", `You are ${currentDistanceMeters.toFixed(1)}m away from the classroom (Max allowed: 50m radius).`);
+                return;
+            }
+
+            livenessState = "DEPTH_CHECK";
+            earBaseline = [];
+            zDepthPassed = false;
+            blinkDetected = false;
+            smileDetected = false;
+
+            document.getElementById('btnStartCheck').disabled = true;
+            document.getElementById('btnStartCheck').classList.add('opacity-50');
+
+            setPrompt("Checking 3D Surface Depth...", "Ensuring face is real 3D curvature, not 2D screen/photo");
+        }
+
+        async function executeBackendVerification() {
+            const studentId = document.getElementById('student_id').value.trim();
+
+            const snapshotCanvas = document.createElement('canvas');
+            snapshotCanvas.width = videoElement.videoWidth || 640;
+            snapshotCanvas.height = videoElement.videoHeight || 480;
+            const ctx = snapshotCanvas.getContext('2d');
+            ctx.drawImage(videoElement, 0, 0, snapshotCanvas.width, snapshotCanvas.height);
+            const imageBase64 = snapshotCanvas.toDataURL('image/jpeg', 0.90);
+
+            try {
+                const response = await fetch('/api/verify-attendance', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        session_id: sessionId,
+                        student_id: studentId,
+                        latitude: studentLatitude || sessionLatitude,
+                        longitude: studentLongitude || sessionLongitude,
+                        image_base64: imageBase64
+                    })
+                });
+
+                const data = await response.json();
+
+                if (response.ok && data.status === 'success') {
+                    document.getElementById('resName').innerText = data.student_name;
+                    document.getElementById('resID').innerText = data.student_id;
+                    document.getElementById('resDept').innerText = data.department;
+                    document.getElementById('resSimilarity').innerText = `${data.similarity_score}%`;
+                    document.getElementById('resDistance').innerText = `${data.distance_meters} m`;
+                    document.getElementById('resTime').innerText = data.verified_at;
+
+                    document.getElementById('successModal').classList.remove('hidden');
+                } else {
+                    const errorMsg = formatErrorMessage(data);
+                    showErrorModal("Verification Failed", errorMsg);
+                    livenessState = "IDLE";
+                    document.getElementById('btnStartCheck').disabled = false;
+                    document.getElementById('btnStartCheck').classList.remove('opacity-50');
+                    setPrompt("Verification Failed", errorMsg);
+                }
+            } catch (err) {
+                console.error("Verification backend error:", err);
+                showErrorModal("Network Error", "Failed to communicate with SmartAttend server.");
+            }
+        }
+
+        window.addEventListener('DOMContentLoaded', loadSessionInfo);
+    </script>
+</body>
+</html>

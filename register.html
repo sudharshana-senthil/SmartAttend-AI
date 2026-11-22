@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SmartAttend | Student Biometric Registration</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Outfit', 'sans-serif'],
+                    },
+                    colors: {
+                        brand: {
+                            50: '#eef2ff',
+                            500: '#6366f1',
+                            600: '#4f46e5',
+                            700: '#4338ca',
+                            900: '#312e81',
+                        },
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            background: radial-gradient(circle at top right, #1e1b4b, #0f172a, #020617);
+            min-height: 100vh;
+        }
+        .glass-panel {
+            background: rgba(15, 23, 42, 0.75);
+            backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .face-oval {
+            border: 2px dashed rgba(99, 102, 241, 0.8);
+            box-shadow: 0 0 20px rgba(99, 102, 241, 0.3);
+            border-radius: 50%;
+        }
+    </style>
+</head>
+<body class="text-slate-100 font-sans flex flex-col min-h-screen">
+
+    <!-- Top Navigation Bar -->
+    <header class="border-b border-slate-800/80 glass-panel sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
+            <div class="flex items-center space-x-3">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-500 to-cyan-400 flex items-center justify-center text-white font-bold text-xl shadow-lg shadow-indigo-500/20">
+                    <i class="fa-solid fa-shield-halved"></i>
+                </div>
+                <div>
+                    <h1 class="text-xl font-bold bg-gradient-to-r from-white via-slate-200 to-indigo-300 bg-clip-text text-transparent">
+                        SmartAttend
+                    </h1>
+                    <p class="text-xs text-indigo-400 font-medium">Zero-Proxy Biometric Attendance</p>
+                </div>
+            </div>
+            <nav class="flex items-center space-x-4">
+                <a href="/faculty" class="px-4 py-2 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-800/60 rounded-lg transition-all">
+                    <i class="fa-solid fa-chalkboard-user mr-1.5"></i> Faculty Portal
+                </a>
+                <a href="/register" class="px-4 py-2 text-sm font-medium text-white bg-indigo-600/40 border border-indigo-500/50 rounded-lg shadow-sm">
+                    <i class="fa-solid fa-user-plus mr-1.5"></i> Student Onboarding
+                </a>
+            </nav>
+        </div>
+    </header>
+
+    <!-- Main Content Container -->
+    <main class="flex-grow max-w-6xl w-full mx-auto px-6 py-10">
+
+        <div class="mb-8 text-center">
+            <span class="px-3 py-1 text-xs font-semibold uppercase tracking-wider text-indigo-400 bg-indigo-950/60 border border-indigo-800/60 rounded-full">
+                Step 1: Baseline Enrollment
+            </span>
+            <h2 class="text-3xl font-extrabold mt-3 bg-gradient-to-r from-white via-indigo-100 to-cyan-200 bg-clip-text text-transparent">
+                Student Biometric Registration
+            </h2>
+            <p class="text-slate-400 max-w-xl mx-auto text-sm mt-2">
+                Register student details and extract a high-precision 128D facial baseline embedding vector for zero-proxy verification.
+            </p>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+
+            <!-- Form Section (Left Column) -->
+            <div class="lg:col-span-5 glass-panel p-6 rounded-2xl shadow-2xl">
+                <h3 class="text-lg font-bold text-white mb-4 flex items-center">
+                    <i class="fa-solid fa-id-card text-indigo-400 mr-2"></i> Student Credentials
+                </h3>
+
+                <form id="registrationForm" onsubmit="event.preventDefault(); submitRegistration();" class="space-y-4">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1.5">
+                            Student ID / Roll Number
+                        </label>
+                        <div class="relative">
+                            <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center text-slate-500">
+                                <i class="fa-solid fa-hashtag"></i>
+                            </span>
+                            <input type="text" id="student_id" required placeholder="e.g. STU1001"
+                                class="w-full pl-10 pr-4 py-2.5 bg-slate-900/90 border border-slate-700/80 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-slate-100 text-sm placeholder-slate-500 outline-none transition-all">
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1.5">
+                            Full Name
+                        </label>
+                        <div class="relative">
+                            <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center text-slate-500">
+                                <i class="fa-solid fa-user"></i>
+                            </span>
+                            <input type="text" id="name" required placeholder="e.g. Alexander Wright"
+                                class="w-full pl-10 pr-4 py-2.5 bg-slate-900/90 border border-slate-700/80 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-slate-100 text-sm placeholder-slate-500 outline-none transition-all">
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1.5">
+                            Department / Program
+                        </label>
+                        <div class="relative">
+                            <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center text-slate-500">
+                                <i class="fa-solid fa-building-columns"></i>
+                            </span>
+                            <input type="text" id="department" required placeholder="e.g. Computer Science & AI"
+                                class="w-full pl-10 pr-4 py-2.5 bg-slate-900/90 border border-slate-700/80 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-slate-100 text-sm placeholder-slate-500 outline-none transition-all">
+                        </div>
+                    </div>
+
+                    <div class="pt-2">
+                        <button type="submit" id="btnRegister"
+                            class="w-full py-3.5 px-4 bg-gradient-to-r from-indigo-600 to-cyan-600 hover:from-indigo-500 hover:to-cyan-500 text-white font-bold rounded-xl shadow-lg shadow-indigo-600/30 flex items-center justify-center space-x-2 transition-all cursor-pointer">
+                            <i class="fa-solid fa-camera mr-1"></i>
+                            <span>Capture Baseline & Register</span>
+                        </button>
+                    </div>
+                </form>
+
+                <!-- Status Feedback Alert -->
+                <div id="statusAlert" class="hidden mt-4 p-4 rounded-xl text-sm border flex items-start space-x-3">
+                    <i id="statusIcon" class="fa-solid mt-0.5 text-lg"></i>
+                    <div>
+                        <h4 id="statusTitle" class="font-bold">Status</h4>
+                        <p id="statusMsg" class="text-xs mt-0.5 opacity-90"></p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Webcam Viewport Section (Right Column) -->
+            <div class="lg:col-span-7 glass-panel p-6 rounded-2xl shadow-2xl flex flex-col items-center">
+                <div class="w-full flex items-center justify-between mb-4">
+                    <h3 class="text-lg font-bold text-white flex items-center">
+                        <i class="fa-solid fa-video text-cyan-400 mr-2"></i> Live Facial Baseline Viewport
+                    </h3>
+                    <span id="camStatus" class="px-2.5 py-1 text-xs font-medium rounded-full bg-emerald-950/80 text-emerald-400 border border-emerald-700/50 flex items-center">
+                        <span class="w-2 h-2 rounded-full bg-emerald-400 animate-ping mr-1.5"></span> Camera Active
+                    </span>
+                </div>
+
+                <div class="relative w-full max-w-md aspect-[4/3] bg-slate-950 rounded-xl overflow-hidden border border-slate-800 shadow-inner flex items-center justify-center">
+                    <video id="webcam" autoplay playsinline muted class="w-full h-full object-cover transform -scale-x-100"></video>
+                    
+                    <!-- Facial Overlay Oval Guide -->
+                    <div class="absolute inset-0 pointer-events-none flex items-center justify-center">
+                        <div class="w-56 h-72 face-oval flex flex-col items-center justify-between py-4">
+                            <span class="text-[10px] uppercase font-bold tracking-widest text-indigo-300 bg-indigo-950/80 px-2 py-0.5 rounded border border-indigo-700/50">Align Face Here</span>
+                            <span class="text-[10px] text-slate-400 bg-slate-900/80 px-2 py-0.5 rounded">Good Lighting</span>
+                        </div>
+                    </div>
+                </div>
+
+                <canvas id="snapshotCanvas" class="hidden"></canvas>
+                <p class="text-xs text-slate-400 mt-4 text-center">
+                    Ensure your face is centered within the guide oval before clicking "Capture Baseline".
+                </p>
+            </div>
+
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="border-t border-slate-800/80 py-6 text-center text-xs text-slate-500 mt-auto">
+        SmartAttend Zero-Proxy Biometric Verification System &bull; Powered by FastAPI & OpenCV
+    </footer>
+
+    <!-- JavaScript Logic -->
+    <script>
+        const video = document.getElementById('webcam');
+        const canvas = document.getElementById('snapshotCanvas');
+
+        // Initialize WebCam Stream
+        async function initCamera() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    video: { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: 'user' },
+                    audio: false
+                });
+                video.srcObject = stream;
+            } catch (err) {
+                console.error("Camera access error:", err);
+                showAlert("error", "Camera Access Error", "Unable to access device webcam. Please allow camera permissions.");
+            }
+        }
+
+        function captureFrameBase64() {
+            canvas.width = video.videoWidth || 640;
+            canvas.height = video.videoHeight || 480;
+            const ctx = canvas.getContext('2d');
+            
+            // Flip horizontally to match mirrored preview
+            ctx.translate(canvas.width, 0);
+            ctx.scale(-1, 1);
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            
+            return canvas.toDataURL('image/jpeg', 0.90);
+        }
+
+        async function submitRegistration() {
+            const studentId = document.getElementById('student_id').value.trim();
+            const name = document.getElementById('name').value.trim();
+            const department = document.getElementById('department').value.trim();
+
+            if (!studentId || !name || !department) {
+                showAlert("error", "Missing Information", "Please complete all student information fields.");
+                return;
+            }
+
+            const btn = document.getElementById('btnRegister');
+            btn.disabled = true;
+            btn.innerHTML = `<i class="fa-solid fa-spinner animate-spin mr-2"></i> Processing Embedding...`;
+
+            try {
+                const imageBase64 = captureFrameBase64();
+
+                const response = await fetch('/api/register-student', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        student_id: studentId,
+                        name: name,
+                        department: department,
+                        image_base64: imageBase64
+                    })
+                });
+
+                const data = await response.json();
+
+                if (response.ok && data.status === 'success') {
+                    showAlert("success", "Registration Successful!", data.message);
+                    document.getElementById('registrationForm').reset();
+                } else {
+                    showAlert("error", "Registration Failed", data.detail || data.message || "Server error occurred");
+                }
+            } catch (err) {
+                console.error("Registration error:", err);
+                showAlert("error", "Network Error", "Failed to communicate with SmartAttend server.");
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = `<i class="fa-solid fa-camera mr-1"></i> Capture Baseline & Register`;
+            }
+        }
+
+        function showAlert(type, title, message) {
+            const alert = document.getElementById('statusAlert');
+            const icon = document.getElementById('statusIcon');
+            const titleEl = document.getElementById('statusTitle');
+            const msgEl = document.getElementById('statusMsg');
+
+            alert.classList.remove('hidden', 'bg-emerald-950/80', 'border-emerald-700', 'text-emerald-300', 'bg-rose-950/80', 'border-rose-700', 'text-rose-300');
+            
+            if (type === 'success') {
+                alert.classList.add('bg-emerald-950/80', 'border-emerald-700', 'text-emerald-300');
+                icon.className = "fa-solid fa-circle-check mt-0.5 text-lg text-emerald-400";
+            } else {
+                alert.classList.add('bg-rose-950/80', 'border-rose-700', 'text-rose-300');
+                icon.className = "fa-solid fa-triangle-exclamation mt-0.5 text-lg text-rose-400";
+            }
+
+            titleEl.innerText = title;
+            msgEl.innerText = message;
+        }
+
+        // Start camera on page load
+        window.addEventListener('DOMContentLoaded', initCamera);
+    </script>
+</body>
+</html>
