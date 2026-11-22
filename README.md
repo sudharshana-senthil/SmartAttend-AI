@@ -582,6 +582,5 @@ This project is distributed under the MIT License. See `LICENSE` for further det
 ## Author Information
 
 - **Developer:** Sudharshana Senthil
-- **Institution:** Department of Computer Applications
 - **Repository:** [https://github.com/sudharshana-senthil/SmartAttend-AI](https://github.com/sudharshana-senthil/SmartAttend-AI)
 - **Project Name:** SmartAttend AI System
